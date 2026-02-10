@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { TARGET_COMPANY_IDS, TARGET_COMPANIES } from '@/lib/targetCompanies'
 
 // Helper to normalize strings for comparison/keys
 const normalize = (str: string | null | undefined) => {
@@ -19,17 +20,51 @@ const extractDomain = (url: string | null | undefined) => {
     }
 }
 
-export async function GET() {
+/**
+ * For source=all, we need to map each company back to its position in the
+ * TARGET_COMPANIES list to determine the owner (first 20 = VANESSA, last 20 = DEBORAH).
+ * We build a domain-based lookup from the target list for reliable matching.
+ */
+function buildTargetOwnerMap(): Map<string, 'VANESSA' | 'DEBORAH'> {
+    const map = new Map<string, 'VANESSA' | 'DEBORAH'>()
+    const splitIndex = Math.ceil(TARGET_COMPANIES.length / 2) // 20
+
+    TARGET_COMPANIES.forEach((company, idx) => {
+        const domain = extractDomain(company.companyId)
+        const owner = idx < splitIndex ? 'VANESSA' : 'DEBORAH'
+        if (domain) map.set(domain, owner)
+        // Also store the raw companyId for exact match fallback
+        map.set(normalize(company.companyId), owner)
+    })
+
+    return map
+}
+
+export async function GET(request: Request) {
     try {
+        // Determine filter mode from query parameter
+        const { searchParams } = new URL(request.url)
+        const source = searchParams.get('source') || 'china'
+
         // 1. Fetch filtered people
-        const people = await prisma.pessoas_apollo_b2b.findMany({
-            where: {
-                notes: 'linkedin_scrapping',
-                phone: {
-                    startsWith: '+55'
-                }
-            }
-        })
+        let people
+
+        if (source === 'all') {
+            // Filter by specific target company_ids
+            people = await prisma.pessoas_apollo_b2b.findMany({
+                where: {
+                    company_id: { in: [...TARGET_COMPANY_IDS] },
+                },
+            })
+        } else {
+            // China: linkedin_scrapping + Brazilian phone
+            people = await prisma.pessoas_apollo_b2b.findMany({
+                where: {
+                    notes: 'linkedin_scrapping',
+                    phone: { startsWith: '+55' },
+                },
+            })
+        }
 
         // 2. Group by Unique Company
         const companiesMap = new Map<string, {
@@ -41,23 +76,21 @@ export async function GET() {
 
         for (const person of people) {
             // Determine Company Key (Preference: company_id (often a URL) -> company_name)
-            // We normalize to ensure 'Apple' same as 'apple'
             let key = ''
 
-            // If company_id looks like a domain/url, use that as key foundation
             if (person.company_id && person.company_id.includes('.')) {
                 key = extractDomain(person.company_id)
             } else {
                 key = normalize(person.company_name)
             }
 
-            if (!key) continue // Skip if really no identifier
+            if (!key) continue
 
             if (!companiesMap.has(key)) {
                 companiesMap.set(key, {
                     key,
                     name: person.company_name || 'Empresa Desconhecida',
-                    domainInput: person.company_id || '', // Often holds the domain in Apollo data
+                    domainInput: person.company_id || '',
                     contacts: []
                 })
             }
@@ -72,14 +105,10 @@ export async function GET() {
 
         // Prepare keys for DB lookups
         const keys = allCompanies.map(c => c.key)
-        // Also prepare names/domains for Enrichment lookup
         const potentialDomains = allCompanies.map(c => extractDomain(c.domainInput)).filter(Boolean)
         const potentialNames = allCompanies.map(c => normalize(c.name)).filter(Boolean)
 
         // 4. Fetch Enrichment Data
-        // We try to match via primary_domain OR company_name
-        // Prisma doesn't have a great "OR" across list inclusion for mixed fields easily in one go efficiently without raw query or separate queries.
-        // Given 55 items, we can just fetch potential matches.
         const enrichedData = await prisma.empresas_enriquecidas.findMany({
             where: {
                 OR: [
@@ -96,45 +125,54 @@ export async function GET() {
             }
         })
 
-        // 6. Assemble Final Response
+        // 6. Build owner assignment
+        // For source=all: use the target list order (first 20 VANESSA, last 20 DEBORAH)
+        // For source=china: use alphabetical 50/50 split
+        const targetOwnerMap = source === 'all' ? buildTargetOwnerMap() : null
+
+        // 7. Assemble Final Response
         const result = allCompanies.map((comp, i) => {
-            // Find Enrichment (Try matching domain first, then name)
-            // Enrichment & Owner Split
-            const splitIndex = Math.ceil(allCompanies.length / 2)
-            const owner = i < splitIndex ? 'VANESSA' : 'DEBORAH'
+            // Determine owner
+            let owner: 'VANESSA' | 'DEBORAH'
+            if (targetOwnerMap) {
+                // Try matching by domain first, then raw company_id
+                const domainKey = extractDomain(comp.domainInput)
+                owner = targetOwnerMap.get(domainKey)
+                    || targetOwnerMap.get(normalize(comp.domainInput))
+                    || 'VANESSA' // Fallback
+            } else {
+                const splitIndex = Math.ceil(allCompanies.length / 2)
+                owner = i < splitIndex ? 'VANESSA' : 'DEBORAH'
+            }
+
             const domainKey = extractDomain(comp.domainInput)
             const enrich = enrichedData.find(e => {
-                // Match domain
                 if (e.primary_domain && extractDomain(e.primary_domain) === domainKey) return true
-                // Match name
                 if (e.company_name && normalize(e.company_name) === normalize(comp.name)) return true
                 return false
             })
 
-            // Find Status
             const status = statusData.find(s => s.company_key === comp.key)
 
             return {
                 key: comp.key,
-                owner: owner,
+                owner,
                 name: enrich?.company_name || comp.name,
                 description: enrich?.description || 'Sem descrição disponível.',
                 website: enrich?.website || enrich?.primary_domain || comp.domainInput || null,
                 location: [enrich?.city, enrich?.state, enrich?.country].filter(Boolean).join(', ') || null,
 
-                // Status
                 contacted: status?.contacted || false,
                 contacted_by: status?.contacted_by || null,
                 contacted_at: status?.contacted_at || null,
 
-                // Contacts (Filtered ones)
                 contacts: comp.contacts.map(p => ({
                     id: p.contact_id,
                     name: p.lead_name || 'Sem nome',
                     title: p.job_title || 'Sem cargo',
                     seniority: p.seniority_level,
                     email: p.email || 'N/A',
-                    phone: p.phone, // We know it's not 'Not available' due to filter
+                    phone: p.phone,
                     linkedin: p.linkedin_url
                 }))
             }
