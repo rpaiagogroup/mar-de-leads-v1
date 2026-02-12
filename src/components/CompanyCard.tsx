@@ -12,7 +12,9 @@ import {
     Mail,
     Linkedin,
     Database,
+    Send,
 } from 'lucide-react'
+import { buildGmailDraftUrl } from '@/lib/emailTemplate'
 import { Company, Contact, getSeniorityBadge, cleanPhone } from '@/lib/types'
 
 type CompanyCardProps = {
@@ -57,8 +59,8 @@ export function CompanyCard({ company, onToggle, onCopy }: CompanyCardProps) {
     return (
         <div
             className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all hover:shadow-md flex flex-col md:flex-row ${company.contacted
-                    ? 'border-green-200 bg-green-50/10'
-                    : 'border-slate-200'
+                ? 'border-green-200 bg-green-50/10'
+                : 'border-slate-200'
                 }`}
         >
             {/* Left Column: Company Info */}
@@ -74,8 +76,8 @@ export function CompanyCard({ company, onToggle, onCopy }: CompanyCardProps) {
                     <button
                         onClick={() => onToggle(company)}
                         className={`shrink-0 p-1.5 rounded-full transition-colors ${company.contacted
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-slate-200 text-slate-400 hover:bg-slate-300'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-slate-200 text-slate-400 hover:bg-slate-300'
                             }`}
                         title={
                             company.contacted
@@ -256,24 +258,41 @@ export function CompanyCard({ company, onToggle, onCopy }: CompanyCardProps) {
                                             </div>
                                         )}
 
-                                        {/* HubSpot Button */}
-                                        <button
-                                            onClick={() => handleSendHubSpot(contact)}
-                                            disabled={sendingId === contact.id}
-                                            className={`w-full mt-2 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-wider py-2 rounded-md transition-all border ${sendingId === contact.id
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2 mt-2">
+                                            {/* Gmail Draft Button */}
+                                            {contact.email && contact.email !== 'N/A' && (
+                                                <a
+                                                    href={buildGmailDraftUrl(contact, company.name, company.owner || 'VANESSA')}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex-1 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-wider py-2 rounded-md transition-all border bg-red-50 text-red-600 border-red-100 hover:bg-red-100 hover:border-red-200"
+                                                    title="Abrir rascunho no Gmail"
+                                                >
+                                                    <Send className="w-3 h-3" />
+                                                    Rascunho Gmail
+                                                </a>
+                                            )}
+
+                                            {/* HubSpot Button */}
+                                            <button
+                                                onClick={() => handleSendHubSpot(contact)}
+                                                disabled={sendingId === contact.id}
+                                                className={`flex-1 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-wider py-2 rounded-md transition-all border ${sendingId === contact.id
                                                     ? 'bg-slate-100 text-slate-400 border-slate-200'
                                                     : 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100 hover:border-orange-200'
-                                                }`}
-                                        >
-                                            {sendingId === contact.id ? (
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                            ) : (
-                                                <Database className="w-3 h-3" />
-                                            )}
-                                            {sendingId === contact.id
-                                                ? 'Enviando...'
-                                                : 'Enviar para HubSpot'}
-                                        </button>
+                                                    }`}
+                                            >
+                                                {sendingId === contact.id ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    <Database className="w-3 h-3" />
+                                                )}
+                                                {sendingId === contact.id
+                                                    ? 'Enviando...'
+                                                    : 'Enviar para HubSpot'}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )
