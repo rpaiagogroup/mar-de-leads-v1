@@ -161,6 +161,7 @@ export async function GET(request: Request) {
                 description: enrich?.description || 'Sem descrição disponível.',
                 website: enrich?.website || enrich?.primary_domain || comp.domainInput || null,
                 location: [enrich?.city, enrich?.state, enrich?.country].filter(Boolean).join(', ') || null,
+                mockupLink: enrich?.mockup_link || null,
 
                 contacted: status?.contacted || false,
                 contacted_by: status?.contacted_by || null,

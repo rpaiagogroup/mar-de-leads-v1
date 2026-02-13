@@ -13,6 +13,7 @@ import {
     Linkedin,
     Database,
     Send,
+    ImageIcon,
 } from 'lucide-react'
 import { buildGmailDraftUrl } from '@/lib/emailTemplate'
 import { Company, Contact, getSeniorityBadge, cleanPhone } from '@/lib/types'
@@ -98,6 +99,20 @@ export function CompanyCard({ company, onToggle, onCopy }: CompanyCardProps) {
                     </span>
                 </div>
 
+                {/* Mockup Link - Prominent */}
+                {company.mockupLink && (
+                    <a
+                        href={company.mockupLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 mb-4 rounded-lg bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200 hover:border-purple-300 transition-all font-bold text-sm shadow-sm"
+                        title="Ver mockup no Google Drive"
+                    >
+                        <ImageIcon className="w-4 h-4" />
+                        Ver Mockup
+                    </a>
+                )}
+
                 <div className="text-xs text-slate-500 leading-relaxed overflow-y-auto max-h-[100px] mb-4 pr-2 custom-scrollbar">
                     {company.description || (
                         <span className="italic text-slate-400">
@@ -107,22 +122,25 @@ export function CompanyCard({ company, onToggle, onCopy }: CompanyCardProps) {
                 </div>
 
                 <div className="mt-auto pt-4 border-t border-slate-200/60 flex items-center justify-between">
-                    {company.website ? (
-                        <a
-                            href={
-                                company.website.startsWith('http')
-                                    ? company.website
-                                    : `https://${company.website}`
-                            }
-                            target="_blank"
-                            className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1 group"
-                        >
-                            <Globe className="w-3 h-3 group-hover:scale-110 transition-transform" />
-                            Website
-                        </a>
-                    ) : (
-                        <span className="text-xs text-slate-400">Sem site</span>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {company.website ? (
+                            <a
+                                href={
+                                    company.website.startsWith('http')
+                                        ? company.website
+                                        : `https://${company.website}`
+                                }
+                                target="_blank"
+                                className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1 group"
+                            >
+                                <Globe className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                                Website
+                            </a>
+                        ) : (
+                            <span className="text-xs text-slate-400">Sem site</span>
+                        )}
+
+                    </div>
 
                     <div className="flex flex-col items-end">
                         {company.contacted && (
