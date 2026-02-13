@@ -105,7 +105,9 @@ export async function GET(request: Request) {
 
         // Prepare keys for DB lookups
         const keys = allCompanies.map(c => c.key)
-        const potentialDomains = allCompanies.map(c => extractDomain(c.domainInput)).filter(Boolean)
+        const rawDomains = allCompanies.map(c => extractDomain(c.domainInput)).filter(Boolean)
+        // Include both "domain.com" and "www.domain.com" so the IN query matches DB values
+        const potentialDomains = [...new Set(rawDomains.flatMap(d => [d, `www.${d}`]))]
         const potentialNames = allCompanies.map(c => normalize(c.name)).filter(Boolean)
 
         // 4. Fetch Enrichment Data
