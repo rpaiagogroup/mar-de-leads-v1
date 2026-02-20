@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
+import { auth } from '@/auth'
 
 export async function POST(request: Request) {
     try {
+        const session = await auth()
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
         const body = await request.json()
         // Validation is loose to allow flexibility, but we expect these fields
         const { company, name, phone, email, linkedin, owner } = body

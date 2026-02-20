@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { auth } from '@/auth'
 import { TARGET_COMPANY_IDS, TARGET_COMPANIES } from '@/lib/targetCompanies'
 
 // Helper to normalize strings for comparison/keys
@@ -42,6 +43,11 @@ function buildTargetOwnerMap(): Map<string, 'VANESSA' | 'DEBORAH'> {
 
 export async function GET(request: Request) {
     try {
+        const session = await auth()
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
         // Determine filter mode from query parameter
         const { searchParams } = new URL(request.url)
         const source = searchParams.get('source') || 'china'
