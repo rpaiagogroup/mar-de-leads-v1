@@ -16,9 +16,13 @@ import { CompanyCard } from '@/components/CompanyCard'
 type CompanyListProps = {
     /** API query param: 'china' filters by +55 phone, 'all' returns everything */
     source: 'china' | 'all'
+    /** Override the API endpoint (default: /api/companies?source=...) */
+    apiEndpoint?: string
+    /** Override the status toggle endpoint (default: /api/company-status) */
+    statusEndpoint?: string
 }
 
-export function CompanyList({ source }: CompanyListProps) {
+export function CompanyList({ source, apiEndpoint, statusEndpoint }: CompanyListProps) {
     const [companies, setCompanies] = useState<Company[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
@@ -29,7 +33,8 @@ export function CompanyList({ source }: CompanyListProps) {
     const fetchCompanies = async () => {
         try {
             setLoading(true)
-            const res = await fetch(`/api/companies?source=${source}`)
+            const url = apiEndpoint || `/api/companies?source=${source}`
+            const res = await fetch(url)
             if (!res.ok) throw new Error('Falha ao buscar dados')
             const data: Company[] = await res.json()
 
@@ -63,7 +68,7 @@ export function CompanyList({ source }: CompanyListProps) {
         )
 
         try {
-            await fetch('/api/company-status', {
+            await fetch(statusEndpoint || '/api/company-status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -162,8 +167,8 @@ export function CompanyList({ source }: CompanyListProps) {
                         key={owner}
                         onClick={() => setActiveOwner(owner)}
                         className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-all relative ${activeOwner === owner
-                                ? 'text-blue-600 bg-blue-50/50'
-                                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                            ? 'text-blue-600 bg-blue-50/50'
+                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                             }`}
                     >
                         {owner}
