@@ -75,3 +75,59 @@ model company_outreach_status {
 
   @@map("company_outreach_status")
 }
+
+model pessoas_apollo_b2b_2 {
+  id                String    @id @default(uuid())
+
+  company_name      String?
+  company_domain    String?
+  lead_name         String?
+  job_title         String?
+  seniority_level   String?
+  department        String?
+  email             String?
+  phone             String?
+  linkedin_url      String?
+  relevance_score   Int?
+  lead_source       String?
+  is_decision_maker Boolean?
+  enrichment_date   DateTime?
+  status            String?
+  notes             String?
+  contact_id        String?
+  contacted         Boolean?  @default(false)
+
+  created_at        DateTime? @default(now())
+  updated_at        DateTime? @updatedAt
+
+  @@map("pessoas_apollo_b2b_2")
+}
+
+model empresas_enriquecidas_2 {
+  id                  String   @id @default(uuid())
+
+  company_name        String?
+  website             String?
+  linkedin_url        String?
+  industry            String?
+  num_employees       Int?
+  phone               String?
+  city                String?
+  state               String?
+  country             String?
+  primary_domain      String?
+  street_address      String?
+  postal_code         String?
+
+  origin              String?
+  description         String?
+  mockup_link         String?
+  logo_url            String?
+  organization_id     String?
+  people_enrichement  Boolean?
+
+  created_at          DateTime? @default(now())
+  updated_at          DateTime? @updatedAt
+
+  @@map("empresas_enriquecidas_2")
+}

@@ -13,7 +13,7 @@ const NAV_ITEMS = [
     { href: '/china3', label: 'China 3' },
 ] as const
 
-export default function DashboardTodos() {
+export default function DashboardChina3() {
     const pathname = usePathname()
 
     return (
@@ -33,7 +33,7 @@ export default function DashboardTodos() {
                         <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight leading-none">
                             MAR DE LEADS{' '}
                             <span className="text-slate-300 font-light ml-1">
-                                China 2
+                                China 3
                             </span>
                         </h2>
                     </div>
@@ -69,7 +69,11 @@ export default function DashboardTodos() {
 
             {/* Main */}
             <main className="max-w-7xl mx-auto px-4 py-8">
-                <CompanyList source="all" />
+                <CompanyList
+                    source="china"
+                    apiEndpoint="/api/companies-v2"
+                    statusEndpoint="/api/contact-status-v2"
+                />
             </main>
         </div>
     )

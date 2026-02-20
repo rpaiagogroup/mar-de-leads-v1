@@ -10,6 +10,7 @@ import { CompanyList } from '@/components/CompanyList'
 const NAV_ITEMS = [
     { href: '/', label: 'China' },
     { href: '/todos', label: 'China 2' },
+    { href: '/china3', label: 'China 3' },
 ] as const
 
 export default function DashboardChina() {
