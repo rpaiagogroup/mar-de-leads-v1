@@ -56,11 +56,22 @@ export async function GET(request: Request) {
         let people
 
         if (source === 'all') {
-            // Filter by specific target company_ids
-            people = await prisma.pessoas_apollo_b2b.findMany({
+            // Build a set of normalized target domains for matching
+            const targetDomains = new Set(
+                TARGET_COMPANY_IDS.map(id => extractDomain(id)).filter(Boolean)
+            )
+
+            // Fetch all people, then filter by domain match
+            // (target list has URLs with http:// but Apollo stores raw domains like www.x.com)
+            const allPeople = await prisma.pessoas_apollo_b2b.findMany({
                 where: {
-                    company_id: { in: [...TARGET_COMPANY_IDS] },
+                    company_id: { not: null },
                 },
+            })
+
+            people = allPeople.filter(p => {
+                const domain = extractDomain(p.company_id)
+                return domain && targetDomains.has(domain)
             })
         } else {
             // China: linkedin_scrapping + Brazilian phone
