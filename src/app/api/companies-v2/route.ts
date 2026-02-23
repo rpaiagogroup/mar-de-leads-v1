@@ -72,6 +72,7 @@ export async function GET() {
 
         const enrichedData = await prisma.empresas_enriquecidas_2.findMany({
             where: {
+                finalidade: 'china3',
                 OR: [
                     { primary_domain: { in: potentialDomains, mode: 'insensitive' } },
                     { company_name: { in: potentialNames, mode: 'insensitive' } },
@@ -79,11 +80,23 @@ export async function GET() {
             },
         })
 
-        // 5. Assign owners: 50/50 alphabetical split
-        const splitIndex = Math.ceil(allCompanies.length / 2)
+        // 5. Build enrichment lookup set (only china3 companies)
+        const enrichedDomains = new Set(enrichedData.map(e => extractDomain(e.primary_domain)))
+        const enrichedNames = new Set(enrichedData.map(e => normalize(e.company_name)))
 
-        // 6. Assemble response
-        const result = allCompanies.map((comp, i) => {
+        // 6. Filter: only keep companies that have enrichment with finalidade='china3'
+        const filteredCompanies = allCompanies.filter(comp => {
+            const domainKey = extractDomain(comp.domainInput)
+            if (domainKey && enrichedDomains.has(domainKey)) return true
+            if (enrichedNames.has(normalize(comp.name))) return true
+            return false
+        })
+
+        // 7. Assign owners: 50/50 alphabetical split
+        const splitIndex = Math.ceil(filteredCompanies.length / 2)
+
+        // 8. Assemble response
+        const result = filteredCompanies.map((comp, i) => {
             const owner = i < splitIndex ? 'VANESSA' : 'DEBORAH'
 
             const domainKey = extractDomain(comp.domainInput)

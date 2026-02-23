@@ -125,6 +125,7 @@ model empresas_enriquecidas_2 {
   logo_url            String?
   organization_id     String?
   people_enrichement  Boolean?
+  finalidade          String?
 
   created_at          DateTime? @default(now())
   updated_at          DateTime? @updatedAt
