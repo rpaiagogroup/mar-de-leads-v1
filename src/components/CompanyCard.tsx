@@ -14,6 +14,9 @@ import {
     Database,
     Send,
     ImageIcon,
+    Building2,
+    Users,
+    MapPin,
 } from 'lucide-react'
 import { buildGmailDraftUrl } from '@/lib/emailTemplate'
 import { Company, Contact, getSeniorityBadge, cleanPhone } from '@/lib/types'
@@ -113,13 +116,37 @@ export function CompanyCard({ company, onToggle, onCopy }: CompanyCardProps) {
                     </a>
                 )}
 
-                <div className="text-xs text-slate-500 leading-relaxed overflow-y-auto max-h-[100px] mb-4 pr-2 custom-scrollbar">
+                <div className="text-xs text-slate-500 leading-relaxed overflow-y-auto max-h-[100px] mb-3 pr-2 custom-scrollbar">
                     {company.description || (
                         <span className="italic text-slate-400">
                             Descrição indisponível.
                         </span>
                     )}
                 </div>
+
+                {/* Company Metadata */}
+                {(company.industry || company.numEmployees || company.location) && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {company.industry && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                <Building2 className="w-3 h-3" />
+                                {company.industry}
+                            </span>
+                        )}
+                        {company.numEmployees && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                <Users className="w-3 h-3" />
+                                {company.numEmployees.toLocaleString('pt-BR')} funcionários
+                            </span>
+                        )}
+                        {company.location && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-600 border border-amber-100">
+                                <MapPin className="w-3 h-3" />
+                                {company.location}
+                            </span>
+                        )}
+                    </div>
+                )}
 
                 <div className="mt-auto pt-4 border-t border-slate-200/60 flex items-center justify-between">
                     <div className="flex items-center gap-3">

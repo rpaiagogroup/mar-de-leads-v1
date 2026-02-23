@@ -180,6 +180,8 @@ export async function GET(request: Request) {
                 description: enrich?.description || 'Sem descrição disponível.',
                 website: enrich?.website || enrich?.primary_domain || comp.domainInput || null,
                 location: [enrich?.city, enrich?.state, enrich?.country].filter(Boolean).join(', ') || null,
+                industry: enrich?.industry || null,
+                numEmployees: enrich?.num_employees || null,
                 mockupLink: enrich?.mockup_link || null,
 
                 contacted: status?.contacted || false,
