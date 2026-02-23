@@ -18,6 +18,8 @@ export type Company = {
     description: string
     website: string | null
     location: string | null
+    industry: string | null
+    numEmployees: number | null
     mockupLink: string | null
     contacted: boolean
     contacted_by: string | null
