@@ -298,7 +298,7 @@ export function CompanyList() {
                     </div>
                 ) : (
                     <div className={`space-y-3 transition-opacity ${loading ? 'opacity-60' : 'opacity-100'}`}>
-                        {filtered.map((company) => (
+                        {filtered.map((company, index) => (
                             <CompanyCard
                                 key={company.key}
                                 company={company}
@@ -306,6 +306,7 @@ export function CompanyList() {
                                 onStatusChange={handleStatusChange}
                                 onSendHubSpot={handleSendHubSpot}
                                 onCopy={handleCopy}
+                                defaultExpanded={index === 0}
                             />
                         ))}
                         {filtered.length === 0 && !loading && (
