@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Filter, X, ChevronDown } from 'lucide-react'
-import type { Filters, StatusFilter, HubspotFilter, EmployeeRange, Company } from '@/lib/types'
+import type { Filters, StatusFilter, EmployeeRange, Company } from '@/lib/types'
 
 // --- Multi-select dropdown ---
 
@@ -148,7 +148,6 @@ function extractOptions(companies: Company[]) {
     const seniorities = new Set<string>()
     const departments = new Set<string>()
     const vendedores = new Set<string>()
-    const hubspotStatuses = new Set<string>()
 
     for (const c of companies) {
         if (c.industry) industries.add(c.industry)
@@ -156,7 +155,6 @@ function extractOptions(companies: Company[]) {
         if (c.origin) origins.add(c.origin)
         if (c.finalidade) finalidades.add(c.finalidade)
         if (c.vendedor_responsavel) vendedores.add(c.vendedor_responsavel)
-        if (c.hubspot_status) hubspotStatuses.add(c.hubspot_status)
         for (const ct of c.contacts) {
             if (ct.seniority) seniorities.add(ct.seniority)
             if (ct.department) departments.add(ct.department)
@@ -172,7 +170,6 @@ function extractOptions(companies: Company[]) {
         origins: toSorted(origins).map((v) => ({ value: v, label: v })),
         finalidades: toSorted(finalidades).map((v) => ({ value: v, label: v })),
         vendedores: toSorted(vendedores).map((v) => ({ value: v, label: v })),
-        hubspotStatuses: toSorted(hubspotStatuses).map((v) => ({ value: v, label: v })),
         seniorities: toSorted(seniorities).map((v) => ({
             value: v,
             label: SENIORITY_LABELS[v] || v,
@@ -217,13 +214,6 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
     { value: 'all', label: 'Todos' },
     { value: 'pending', label: 'Pendente' },
     { value: 'contacted', label: 'Contatado' },
-    { value: 'follow_up', label: 'Follow-up pendente' },
-]
-
-const HUBSPOT_OPTIONS: { value: HubspotFilter; label: string }[] = [
-    { value: 'all', label: 'Todos' },
-    { value: 'yes', label: 'Sim' },
-    { value: 'no', label: 'Nao' },
 ]
 
 // --- Default filters ---
@@ -235,8 +225,6 @@ export const DEFAULT_FILTERS: Filters = {
     departments: [],
     states: [],
     status: 'all',
-    hubspot: 'all',
-    hubspotStatuses: [],
     origins: [],
     employeeRanges: [],
     finalidades: [],
@@ -250,8 +238,6 @@ export function hasActiveFilters(filters: Filters): boolean {
         filters.departments.length > 0 ||
         filters.states.length > 0 ||
         filters.status !== 'all' ||
-        filters.hubspot !== 'all' ||
-        filters.hubspotStatuses.length > 0 ||
         filters.origins.length > 0 ||
         filters.employeeRanges.length > 0 ||
         filters.finalidades.length > 0 ||
@@ -308,22 +294,10 @@ export function applyFilters(companies: Company[], filters: Filters): Company[] 
         // Status
         if (filters.status === 'pending' && c.contacted) return false
         if (filters.status === 'contacted' && !c.contacted) return false
-        if (filters.status === 'follow_up') {
-            if (!c.follow_up_date) return false
-        }
-
-        // HubSpot
-        if (filters.hubspot === 'yes' && !c.sent_to_hubspot) return false
-        if (filters.hubspot === 'no' && c.sent_to_hubspot) return false
 
         // Vendedor
         if (filters.vendedores.length > 0) {
             if (!c.vendedor_responsavel || !filters.vendedores.includes(c.vendedor_responsavel)) return false
-        }
-
-        // HubSpot Status
-        if (filters.hubspotStatuses.length > 0) {
-            if (!c.hubspot_status || !filters.hubspotStatuses.includes(c.hubspot_status)) return false
         }
 
         // Seniority (company has at least one contact matching)
@@ -418,12 +392,6 @@ export function FilterBar({ companies, filters, onChange }: FilterBarProps) {
                             value={filters.status}
                             onChange={(v) => update({ status: v })}
                         />
-                        <SingleSelect
-                            label="HubSpot"
-                            options={HUBSPOT_OPTIONS}
-                            value={filters.hubspot}
-                            onChange={(v) => update({ hubspot: v })}
-                        />
                         <MultiSelect
                             label="Origem"
                             options={options.origins}
@@ -448,15 +416,6 @@ export function FilterBar({ companies, filters, onChange }: FilterBarProps) {
                             selected={filters.vendedores}
                             onChange={(v) => update({ vendedores: v })}
                         />
-                        {options.hubspotStatuses.length > 0 && (
-                            <MultiSelect
-                                label="Status HubSpot"
-                                options={options.hubspotStatuses}
-                                selected={filters.hubspotStatuses}
-                                onChange={(v) => update({ hubspotStatuses: v })}
-                            />
-                        )}
-
                         {active && (
                             <button
                                 onClick={clear}

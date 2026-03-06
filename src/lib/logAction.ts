@@ -5,8 +5,6 @@ export type ActionType =
     | 'contact_marked'
     | 'contact_unmarked'
     | 'hubspot_sent'
-    | 'follow_up_set'
-    | 'follow_up_removed'
     | 'company_added'
 
 export async function logAction({

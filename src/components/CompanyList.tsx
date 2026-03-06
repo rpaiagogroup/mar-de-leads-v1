@@ -10,7 +10,6 @@ import {
     HubSpotOwner,
     Filters,
     StatusFilter,
-    HubspotFilter,
     EmployeeRange,
     sortContactsBySeniority,
 } from '@/lib/types'
@@ -33,8 +32,6 @@ function filtersFromParams(params: URLSearchParams): Filters {
         departments: parseArray('department'),
         states: parseArray('state'),
         status: (params.get('status') as StatusFilter) || 'all',
-        hubspot: (params.get('hubspot') as HubspotFilter) || 'all',
-        hubspotStatuses: parseArray('hubspot_status'),
         origins: parseArray('origin'),
         employeeRanges: parseArray('employees') as EmployeeRange[],
         finalidades: parseArray('finalidade'),
@@ -50,8 +47,6 @@ function filtersToParams(filters: Filters): string {
     if (filters.departments.length) p.set('department', filters.departments.join(','))
     if (filters.states.length) p.set('state', filters.states.join(','))
     if (filters.status !== 'all') p.set('status', filters.status)
-    if (filters.hubspot !== 'all') p.set('hubspot', filters.hubspot)
-    if (filters.hubspotStatuses.length) p.set('hubspot_status', filters.hubspotStatuses.join(','))
     if (filters.origins.length) p.set('origin', filters.origins.join(','))
     if (filters.employeeRanges.length) p.set('employees', filters.employeeRanges.join(','))
     if (filters.finalidades.length) p.set('finalidade', filters.finalidades.join(','))
@@ -138,33 +133,6 @@ export function CompanyList() {
         }
     }
 
-    const handleFollowUp = async (company: Company, date: string, notes: string) => {
-        setCompanies((prev) =>
-            prev.map((c) =>
-                c.key === company.key
-                    ? { ...c, follow_up_date: date || null, follow_up_notes: notes || null }
-                    : c
-            )
-        )
-
-        try {
-            const res = await fetch('/api/company-follow-up', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    company_domain: company.key,
-                    follow_up_date: date || null,
-                    follow_up_notes: notes || null,
-                }),
-            })
-            if (!res.ok) throw new Error()
-            toast.success(date ? 'Follow-up salvo!' : 'Follow-up removido.')
-        } catch {
-            toast.error('Erro ao salvar follow-up.')
-            fetchCompanies()
-        }
-    }
-
     const handleSendHubSpot = async (company: Company, contact: Contact, ownerName: string, hubspotOwnerId: string, hubspotOwnerEmail: string) => {
         const toastId = toast.loading('Enviando para HubSpot...')
         try {
@@ -196,35 +164,22 @@ export function CompanyList() {
         }
     }
 
-    const handleRefreshHubSpotStatus = async (company: Company) => {
-        try {
-            const res = await fetch(`/api/hubspot/deal-status?company_domain=${encodeURIComponent(company.key)}`)
-            if (!res.ok) throw new Error()
-            const data = await res.json()
-            setCompanies((prev) =>
-                prev.map((c) =>
-                    c.key === company.key
-                        ? {
-                            ...c,
-                            hubspot_status: data.hubspot_status,
-                            hubspot_deal_stage: data.hubspot_deal_stage,
-                            hubspot_last_synced_at: data.hubspot_last_synced_at,
-                        }
-                        : c
-                )
-            )
-            toast.success(data.hubspot_status ? `Status: ${data.hubspot_status}` : 'Sem status no HubSpot')
-        } catch {
-            toast.error('Erro ao buscar status do HubSpot.')
-        }
-    }
-
     const handleCopy = (text: string, label: string) => {
         navigator.clipboard.writeText(text)
         toast.success(`${label} copiado!`)
     }
 
     const filtered = useMemo(() => applyFilters(companies, filters), [companies, filters])
+
+    // Derive selected vendedor from owners list (first selected in filter, if any)
+    const selectedVendedor = useMemo(() => {
+        if (filters.vendedores.length === 1) {
+            const name = filters.vendedores[0]
+            const owner = owners.find(o => o.label === name)
+            return { name, id: owner?.id || '', email: owner?.email || '' }
+        }
+        return null
+    }, [filters.vendedores, owners])
 
     const totalEmpresas = companies.length
     const totalContatos = companies.reduce((acc, c) => acc + c.contacts.length, 0)
@@ -347,11 +302,9 @@ export function CompanyList() {
                             <CompanyCard
                                 key={company.key}
                                 company={company}
-                                owners={owners}
+                                selectedVendedor={selectedVendedor}
                                 onStatusChange={handleStatusChange}
-                                onFollowUp={handleFollowUp}
                                 onSendHubSpot={handleSendHubSpot}
-                                onRefreshHubSpotStatus={handleRefreshHubSpotStatus}
                                 onCopy={handleCopy}
                             />
                         ))}

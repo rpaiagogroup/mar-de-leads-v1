@@ -110,12 +110,7 @@ export async function GET() {
                 contacted_at: action?.contacted_at?.toISOString() || null,
                 sent_to_hubspot: action?.sent_to_hubspot ?? false,
                 sent_to_hubspot_at: action?.sent_to_hubspot_at?.toISOString() || null,
-                follow_up_date: action?.follow_up_date?.toISOString() || null,
-                follow_up_notes: action?.follow_up_notes || null,
                 vendedor_responsavel: action?.vendedor_responsavel || null,
-                hubspot_status: action?.hubspot_status || null,
-                hubspot_deal_stage: action?.hubspot_deal_stage || null,
-                hubspot_last_synced_at: action?.hubspot_last_synced_at?.toISOString() || null,
 
                 contacts: comp.contacts.map(p => ({
                     id: p.contact_id || p.id,

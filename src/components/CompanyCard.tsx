@@ -16,20 +16,15 @@ import {
     Users,
     MapPin,
     Briefcase,
-    CalendarClock,
     Send,
-    RefreshCw,
-    ArrowRightLeft,
 } from 'lucide-react'
-import { Company, Contact, HubSpotOwner, getSeniorityBadge, cleanPhone } from '@/lib/types'
+import { Company, Contact, getSeniorityBadge, cleanPhone } from '@/lib/types'
 
 type CompanyCardProps = {
     company: Company
-    owners: HubSpotOwner[]
+    selectedVendedor: { name: string; id: string; email: string } | null
     onStatusChange: (company: Company, contacted: boolean) => void
-    onFollowUp: (company: Company, date: string, notes: string) => void
     onSendHubSpot: (company: Company, contact: Contact, ownerName: string, hubspotOwnerId: string, hubspotOwnerEmail: string) => void
-    onRefreshHubSpotStatus: (company: Company) => void
     onCopy: (text: string, label: string) => void
 }
 
@@ -53,49 +48,31 @@ function formatDate(iso: string | null): string {
     return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
-export function CompanyCard({ company, owners, onStatusChange, onFollowUp, onSendHubSpot, onRefreshHubSpotStatus, onCopy }: CompanyCardProps) {
+export function CompanyCard({ company, selectedVendedor, onStatusChange, onSendHubSpot, onCopy }: CompanyCardProps) {
     const [expanded, setExpanded] = useState(false)
     const [sendingId, setSendingId] = useState<string | null>(null)
-    const [showFollowUp, setShowFollowUp] = useState(false)
-    const [followUpDate, setFollowUpDate] = useState(company.follow_up_date?.split('T')[0] || '')
-    const [followUpNotes, setFollowUpNotes] = useState(company.follow_up_notes || '')
-    const [selectedOwner, setSelectedOwner] = useState('')
-    const [showOwnerSelect, setShowOwnerSelect] = useState<string | null>(null)
-    const [refreshingStatus, setRefreshingStatus] = useState(false)
 
     const handleSendHubSpot = async (contact: Contact) => {
         if (sendingId) return
-        const owner = owners.find(o => o.id === selectedOwner)
-        const ownerName = owner?.label || selectedOwner || ''
-        const ownerId = owner?.id || ''
-        const ownerEmail = owner?.email || ''
+        const ownerName = selectedVendedor?.name || ''
+        const ownerId = selectedVendedor?.id || ''
+        const ownerEmail = selectedVendedor?.email || ''
         setSendingId(contact.id)
         try {
             await onSendHubSpot(company, contact, ownerName, ownerId, ownerEmail)
         } finally {
             setSendingId(null)
-            setShowOwnerSelect(null)
-            setSelectedOwner('')
         }
-    }
-
-    const handleFollowUpSave = () => {
-        onFollowUp(company, followUpDate, followUpNotes)
-        setShowFollowUp(false)
     }
 
     const location = company.location
     const qualifiedCount = company.contacts.length
-
-    const isFollowUpDue = company.follow_up_date && new Date(company.follow_up_date) <= new Date()
 
     return (
         <div
             className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all hover:shadow-md ${
                 company.contacted
                     ? 'border-green-200 bg-green-50/30'
-                    : isFollowUpDue
-                    ? 'border-amber-200 bg-amber-50/30'
                     : 'border-slate-200'
             }`}
         >
@@ -141,29 +118,11 @@ export function CompanyCard({ company, owners, onStatusChange, onFollowUp, onSen
                         {qualifiedCount} {qualifiedCount === 1 ? 'contato' : 'contatos'}
                     </span>
 
-                    {company.follow_up_date && (
-                        <span className={`shrink-0 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold border ${
-                            isFollowUpDue
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : 'bg-sky-50 text-sky-600 border-sky-200'
-                        }`}>
-                            <CalendarClock className="w-3 h-3 inline -mt-0.5 mr-0.5" />
-                            {formatDate(company.follow_up_date)}
-                        </span>
-                    )}
-
                     {company.sent_to_hubspot && (
                         <span className="shrink-0 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200" title={company.vendedor_responsavel ? `Vendedor: ${company.vendedor_responsavel}` : undefined}>
                             <Send className="w-3 h-3 inline -mt-0.5 mr-0.5" />
                             <span className="hidden sm:inline">HubSpot{company.vendedor_responsavel ? ` - ${company.vendedor_responsavel}` : ''}</span>
                             <span className="sm:hidden">HS</span>
-                        </span>
-                    )}
-
-                    {company.hubspot_status && (
-                        <span className="shrink-0 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold bg-violet-50 text-violet-600 border border-violet-200">
-                            <ArrowRightLeft className="w-3 h-3 inline -mt-0.5 mr-0.5" />
-                            {company.hubspot_status}
                         </span>
                     )}
 
@@ -230,112 +189,13 @@ export function CompanyCard({ company, owners, onStatusChange, onFollowUp, onSen
                                 <Check className="w-3 h-3" />
                                 {company.contacted ? 'Contatado' : 'Marcar contatado'}
                             </button>
-
-                            {/* Follow-up Button */}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    setShowFollowUp(!showFollowUp)
-                                }}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                                    company.follow_up_date
-                                        ? 'bg-sky-100 text-sky-700 hover:bg-sky-200'
-                                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                                }`}
-                            >
-                                <CalendarClock className="w-3 h-3" />
-                                {company.follow_up_date ? `Follow-up ${formatDate(company.follow_up_date)}` : 'Follow-up'}
-                            </button>
                         </div>
-
-                        {/* Follow-up inline form */}
-                        {showFollowUp && (
-                            <div className="w-full mt-2 flex flex-wrap items-end gap-2 bg-white p-3 rounded-lg border border-slate-200" onClick={(e) => e.stopPropagation()}>
-                                <div>
-                                    <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Data</label>
-                                    <input
-                                        type="date"
-                                        value={followUpDate}
-                                        onChange={(e) => setFollowUpDate(e.target.value)}
-                                        className="px-2 py-1 border border-slate-200 rounded text-xs"
-                                    />
-                                </div>
-                                <div className="flex-1 min-w-[150px]">
-                                    <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Notas</label>
-                                    <input
-                                        type="text"
-                                        value={followUpNotes}
-                                        onChange={(e) => setFollowUpNotes(e.target.value)}
-                                        placeholder="Ex: Ligar novamente..."
-                                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs"
-                                    />
-                                </div>
-                                <button
-                                    onClick={handleFollowUpSave}
-                                    className="px-3 py-1 bg-sky-500 text-white rounded text-xs font-semibold hover:bg-sky-600 transition-colors"
-                                >
-                                    Salvar
-                                </button>
-                                {company.follow_up_date && (
-                                    <button
-                                        onClick={() => {
-                                            setFollowUpDate('')
-                                            setFollowUpNotes('')
-                                            onFollowUp(company, '', '')
-                                            setShowFollowUp(false)
-                                        }}
-                                        className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-semibold hover:bg-red-100 transition-colors"
-                                    >
-                                        Remover
-                                    </button>
-                                )}
-                            </div>
-                        )}
 
                         {/* Contacted by info */}
                         {company.contacted && company.contacted_by && (
                             <p className="w-full text-[11px] text-green-600">
                                 Contatado por {company.contacted_by} em {formatDate(company.contacted_at)}
                             </p>
-                        )}
-
-                        {/* Follow-up notes */}
-                        {company.follow_up_notes && !showFollowUp && (
-                            <p className="w-full text-[11px] text-sky-600">
-                                Follow-up: {company.follow_up_notes}
-                            </p>
-                        )}
-
-                        {/* HubSpot Deal Status */}
-                        {company.sent_to_hubspot && (
-                            <div className="w-full flex items-center gap-2 mt-1">
-                                <div className="flex items-center gap-1.5 text-[11px] text-violet-600">
-                                    <ArrowRightLeft className="w-3 h-3" />
-                                    <span className="font-semibold">Status HubSpot:</span>
-                                    <span>{company.hubspot_status || 'Sem status'}</span>
-                                    {company.hubspot_deal_stage && (
-                                        <span className="text-violet-400">({company.hubspot_deal_stage})</span>
-                                    )}
-                                    {company.hubspot_last_synced_at && (
-                                        <span className="text-slate-400 ml-1">
-                                            Sync: {formatDate(company.hubspot_last_synced_at)}
-                                        </span>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        setRefreshingStatus(true)
-                                        onRefreshHubSpotStatus(company)
-                                        setTimeout(() => setRefreshingStatus(false), 2000)
-                                    }}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-violet-600 bg-violet-50 border border-violet-200 rounded hover:bg-violet-100 transition-colors"
-                                    title="Atualizar status do HubSpot"
-                                >
-                                    <RefreshCw className={`w-3 h-3 ${refreshingStatus ? 'animate-spin' : ''}`} />
-                                    Atualizar
-                                </button>
-                            </div>
                         )}
                     </div>
 
@@ -430,68 +290,23 @@ export function CompanyCard({ company, owners, onStatusChange, onFollowUp, onSen
                                             )}
                                         </div>
 
-                                        {/* HubSpot Button + Owner Selector */}
-                                        {showOwnerSelect === contact.id ? (
-                                            <div className="mt-1 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                                {owners.length > 0 ? (
-                                                    <select
-                                                        value={selectedOwner}
-                                                        onChange={(e) => setSelectedOwner(e.target.value)}
-                                                        className="w-full px-2 py-1 border border-orange-200 rounded text-xs bg-orange-50 text-slate-700"
-                                                    >
-                                                        <option value="">Selecione vendedor...</option>
-                                                        {owners.map((o) => (
-                                                            <option key={o.id} value={o.id}>{o.label}</option>
-                                                        ))}
-                                                    </select>
-                                                ) : (
-                                                    <input
-                                                        type="text"
-                                                        value={selectedOwner}
-                                                        onChange={(e) => setSelectedOwner(e.target.value)}
-                                                        placeholder="Nome do vendedor..."
-                                                        className="w-full px-2 py-1 border border-orange-200 rounded text-xs"
-                                                    />
-                                                )}
-                                                <div className="flex gap-1">
-                                                    <button
-                                                        onClick={() => handleSendHubSpot(contact)}
-                                                        disabled={sendingId === contact.id || !selectedOwner}
-                                                        className={`flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md transition-all border ${
-                                                            sendingId === contact.id || !selectedOwner
-                                                                ? 'bg-slate-100 text-slate-400 border-slate-200'
-                                                                : 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100'
-                                                        }`}
-                                                    >
-                                                        {sendingId === contact.id ? (
-                                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                                        ) : (
-                                                            <Send className="w-3 h-3" />
-                                                        )}
-                                                        {sendingId === contact.id ? 'Enviando...' : 'Enviar'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => { setShowOwnerSelect(null); setSelectedOwner('') }}
-                                                        className="px-2 py-1.5 text-[10px] font-bold text-slate-500 border border-slate-200 rounded-md hover:bg-slate-50"
-                                                    >
-                                                        X
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => setShowOwnerSelect(contact.id)}
-                                                disabled={sendingId === contact.id}
-                                                className={`mt-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md transition-all border ${
-                                                    sendingId === contact.id
-                                                        ? 'bg-slate-100 text-slate-400 border-slate-200'
-                                                        : 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100'
-                                                }`}
-                                            >
+                                        {/* HubSpot Button — direct send */}
+                                        <button
+                                            onClick={() => handleSendHubSpot(contact)}
+                                            disabled={sendingId === contact.id}
+                                            className={`mt-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md transition-all border ${
+                                                sendingId === contact.id
+                                                    ? 'bg-slate-100 text-slate-400 border-slate-200'
+                                                    : 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100'
+                                            }`}
+                                        >
+                                            {sendingId === contact.id ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
                                                 <Database className="w-3 h-3" />
-                                                HubSpot
-                                            </button>
-                                        )}
+                                            )}
+                                            {sendingId === contact.id ? 'Enviando...' : 'Enviar HubSpot'}
+                                        </button>
                                     </div>
                                 )
                             })}

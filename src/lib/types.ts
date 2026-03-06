@@ -28,12 +28,7 @@ export type Company = {
     contacted_at: string | null
     sent_to_hubspot: boolean
     sent_to_hubspot_at: string | null
-    follow_up_date: string | null
-    follow_up_notes: string | null
     vendedor_responsavel: string | null
-    hubspot_status: string | null
-    hubspot_deal_stage: string | null
-    hubspot_last_synced_at: string | null
     contacts: Contact[]
 }
 
@@ -45,11 +40,9 @@ export type HubSpotOwner = {
     label: string
 }
 
-export type StatusFilter = 'all' | 'pending' | 'contacted' | 'follow_up'
+export type StatusFilter = 'all' | 'pending' | 'contacted'
 
 export type EmployeeRange = '1-50' | '51-200' | '201-500' | '500+'
-
-export type HubspotFilter = 'all' | 'yes' | 'no'
 
 export type Filters = {
     search: string
@@ -58,8 +51,6 @@ export type Filters = {
     departments: string[]
     states: string[]
     status: StatusFilter
-    hubspot: HubspotFilter
-    hubspotStatuses: string[]
     origins: string[]
     employeeRanges: EmployeeRange[]
     finalidades: string[]
