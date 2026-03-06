@@ -27,14 +27,9 @@ function filtersFromParams(params: URLSearchParams): Filters {
 
     return {
         search: params.get('q') || '',
-        industries: parseArray('industry'),
-        seniorities: parseArray('seniority'),
-        departments: parseArray('department'),
-        states: parseArray('state'),
         status: (params.get('status') as StatusFilter) || 'all',
         origins: parseArray('origin'),
         employeeRanges: parseArray('employees') as EmployeeRange[],
-        finalidades: parseArray('finalidade'),
         vendedores: parseArray('vendedor'),
     }
 }
@@ -42,14 +37,9 @@ function filtersFromParams(params: URLSearchParams): Filters {
 function filtersToParams(filters: Filters): string {
     const p = new URLSearchParams()
     if (filters.search) p.set('q', filters.search)
-    if (filters.industries.length) p.set('industry', filters.industries.join(','))
-    if (filters.seniorities.length) p.set('seniority', filters.seniorities.join(','))
-    if (filters.departments.length) p.set('department', filters.departments.join(','))
-    if (filters.states.length) p.set('state', filters.states.join(','))
     if (filters.status !== 'all') p.set('status', filters.status)
     if (filters.origins.length) p.set('origin', filters.origins.join(','))
     if (filters.employeeRanges.length) p.set('employees', filters.employeeRanges.join(','))
-    if (filters.finalidades.length) p.set('finalidade', filters.finalidades.join(','))
     if (filters.vendedores.length) p.set('vendedor', filters.vendedores.join(','))
     return p.toString()
 }

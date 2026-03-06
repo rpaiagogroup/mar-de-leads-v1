@@ -46,14 +46,9 @@ export type EmployeeRange = '1-50' | '51-200' | '201-500' | '500+'
 
 export type Filters = {
     search: string
-    industries: string[]
-    seniorities: string[]
-    departments: string[]
-    states: string[]
     status: StatusFilter
     origins: string[]
     employeeRanges: EmployeeRange[]
-    finalidades: string[]
     vendedores: string[]
 }
 

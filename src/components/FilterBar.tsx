@@ -1,10 +1,28 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Filter, X, ChevronDown } from 'lucide-react'
+import { X, ChevronDown } from 'lucide-react'
 import type { Filters, StatusFilter, EmployeeRange, Company } from '@/lib/types'
 
-// --- Multi-select dropdown ---
+// --- Origin mapping ---
+
+const ORIGIN_GROUPS: { value: string; label: string; raw: string[] }[] = [
+    { value: 'prospeccao_linkedin', label: 'Prospecção LinkedIn', raw: ['linkedin', 'linkedin_scrapping'] },
+    { value: 'prospeccao_icp', label: 'Prospecção ICP', raw: ['automatic', 'apollo'] },
+    { value: 'inclusao_manual', label: 'Inclusão Manual', raw: ['manual_input', 'manual'] },
+]
+
+function rawOriginsForGroup(groupValues: string[]): string[] {
+    return ORIGIN_GROUPS
+        .filter((g) => groupValues.includes(g.value))
+        .flatMap((g) => g.raw)
+}
+
+// --- No-owner sentinel ---
+
+const NO_OWNER = '__sem_proprietario__'
+
+// --- Multi-select dropdown (large style) ---
 
 function MultiSelect({
     label,
@@ -36,41 +54,40 @@ function MultiSelect({
         )
     }
 
+    const displayLabel = selected.length > 0
+        ? `${label} (${selected.length})`
+        : label
+
     return (
-        <div ref={ref} className="relative">
+        <div ref={ref} className="relative flex-1 min-w-[180px]">
             <button
                 onClick={() => setOpen(!open)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                className={`w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-medium rounded-lg border transition-colors ${
                     selected.length > 0
                         ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
                 }`}
             >
-                {label}
-                {selected.length > 0 && (
-                    <span className="bg-indigo-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
-                        {selected.length}
-                    </span>
-                )}
-                <ChevronDown className="w-3 h-3" />
+                <span className="truncate">{displayLabel}</span>
+                <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
             {open && (
-                <div className="absolute z-50 mt-1 w-64 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
+                <div className="absolute z-50 mt-1 w-full min-w-[220px] max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
                     {options.length === 0 && (
-                        <div className="px-3 py-2 text-xs text-slate-400">Nenhuma opcao</div>
+                        <div className="px-4 py-3 text-sm text-slate-400">Nenhuma opcao</div>
                     )}
                     {options.map((opt) => (
                         <label
                             key={opt.value}
-                            className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer text-xs"
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm"
                         >
                             <input
                                 type="checkbox"
                                 checked={selected.includes(opt.value)}
                                 onChange={() => toggle(opt.value)}
-                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
                             />
-                            <span className="truncate text-slate-800">{opt.label}</span>
+                            <span className="text-slate-800">{opt.label}</span>
                         </label>
                     ))}
                 </div>
@@ -79,7 +96,7 @@ function MultiSelect({
     )
 }
 
-// --- Single-select dropdown ---
+// --- Single-select dropdown (large style) ---
 
 function SingleSelect<T extends string>({
     label,
@@ -107,25 +124,25 @@ function SingleSelect<T extends string>({
     const isDefault = value === options[0]?.value
 
     return (
-        <div ref={ref} className="relative">
+        <div ref={ref} className="relative flex-1 min-w-[180px]">
             <button
                 onClick={() => setOpen(!open)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                className={`w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-medium rounded-lg border transition-colors ${
                     !isDefault
                         ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
                 }`}
             >
-                {label}: {current?.label}
-                <ChevronDown className="w-3 h-3" />
+                <span className="truncate">{label}: {current?.label}</span>
+                <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
             {open && (
-                <div className="absolute z-50 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg">
+                <div className="absolute z-50 mt-1 w-full min-w-[180px] bg-white border border-slate-200 rounded-lg shadow-lg">
                     {options.map((opt) => (
                         <button
                             key={opt.value}
                             onClick={() => { onChange(opt.value); setOpen(false) }}
-                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 ${
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 ${
                                 value === opt.value ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-800'
                             }`}
                         >
@@ -138,70 +155,33 @@ function SingleSelect<T extends string>({
     )
 }
 
-// --- Helpers to extract unique values from companies ---
+// --- Extract vendedor options from companies ---
 
-function extractOptions(companies: Company[]) {
-    const industries = new Set<string>()
-    const states = new Set<string>()
-    const origins = new Set<string>()
-    const finalidades = new Set<string>()
-    const seniorities = new Set<string>()
-    const departments = new Set<string>()
+function extractVendedorOptions(companies: Company[]) {
     const vendedores = new Set<string>()
-
     for (const c of companies) {
-        if (c.industry) industries.add(c.industry)
-        if (c.state) states.add(c.state)
-        if (c.origin) origins.add(c.origin)
-        if (c.finalidade) finalidades.add(c.finalidade)
         if (c.vendedor_responsavel) vendedores.add(c.vendedor_responsavel)
-        for (const ct of c.contacts) {
-            if (ct.seniority) seniorities.add(ct.seniority)
-            if (ct.department) departments.add(ct.department)
-        }
     }
+    const sorted = Array.from(vendedores).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    return [
+        { value: NO_OWNER, label: 'Sem proprietario' },
+        ...sorted.map((v) => ({ value: v, label: v })),
+    ]
+}
 
-    const toSorted = (s: Set<string>) =>
-        Array.from(s).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+// --- Extract origin options (only groups that have data) ---
 
-    return {
-        industries: toSorted(industries).map((v) => ({ value: v, label: v })),
-        states: toSorted(states).map((v) => ({ value: v, label: v })),
-        origins: toSorted(origins).map((v) => ({ value: v, label: v })),
-        finalidades: toSorted(finalidades).map((v) => ({ value: v, label: v })),
-        vendedores: toSorted(vendedores).map((v) => ({ value: v, label: v })),
-        seniorities: toSorted(seniorities).map((v) => ({
-            value: v,
-            label: SENIORITY_LABELS[v] || v,
-        })),
-        departments: toSorted(departments).map((v) => ({
-            value: v,
-            label: DEPARTMENT_LABELS[v] || v,
-        })),
+function extractOriginOptions(companies: Company[]) {
+    const rawOrigins = new Set<string>()
+    for (const c of companies) {
+        if (c.origin) rawOrigins.add(c.origin)
     }
+    return ORIGIN_GROUPS.filter((g) =>
+        g.raw.some((r) => rawOrigins.has(r))
+    ).map((g) => ({ value: g.value, label: g.label }))
 }
 
-const SENIORITY_LABELS: Record<string, string> = {
-    c_suite: 'C-Level',
-    founder: 'Founder',
-    head: 'Head',
-    director: 'Director',
-    senior: 'Senior',
-    manager: 'Manager',
-    partner: 'Partner',
-    entry: 'Entry',
-    intern: 'Intern',
-}
-
-const DEPARTMENT_LABELS: Record<string, string> = {
-    c_suite: 'C-Suite',
-    design: 'Design',
-    master_finance: 'Financeiro',
-    master_human_resources: 'RH',
-    master_marketing: 'Marketing',
-    master_operations: 'Operacoes',
-    product_management: 'Produto',
-}
+// --- Constants ---
 
 const EMPLOYEE_RANGE_OPTIONS: { value: EmployeeRange; label: string }[] = [
     { value: '1-50', label: '1-50' },
@@ -212,35 +192,25 @@ const EMPLOYEE_RANGE_OPTIONS: { value: EmployeeRange; label: string }[] = [
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
     { value: 'all', label: 'Todos' },
-    { value: 'pending', label: 'Pendente' },
-    { value: 'contacted', label: 'Contatado' },
+    { value: 'pending', label: 'Pendentes' },
+    { value: 'contacted', label: 'Contatados' },
 ]
 
 // --- Default filters ---
 
 export const DEFAULT_FILTERS: Filters = {
     search: '',
-    industries: [],
-    seniorities: [],
-    departments: [],
-    states: [],
     status: 'all',
     origins: [],
     employeeRanges: [],
-    finalidades: [],
     vendedores: [],
 }
 
 export function hasActiveFilters(filters: Filters): boolean {
     return (
-        filters.industries.length > 0 ||
-        filters.seniorities.length > 0 ||
-        filters.departments.length > 0 ||
-        filters.states.length > 0 ||
         filters.status !== 'all' ||
         filters.origins.length > 0 ||
         filters.employeeRanges.length > 0 ||
-        filters.finalidades.length > 0 ||
         filters.vendedores.length > 0
     )
 }
@@ -268,24 +238,10 @@ export function applyFilters(companies: Company[], filters: Filters): Company[] 
             if (!c.name.toLowerCase().includes(term)) return false
         }
 
-        // Industry
-        if (filters.industries.length > 0) {
-            if (!c.industry || !filters.industries.includes(c.industry)) return false
-        }
-
-        // State
-        if (filters.states.length > 0) {
-            if (!c.state || !filters.states.includes(c.state)) return false
-        }
-
-        // Origin
+        // Origin (mapped groups)
         if (filters.origins.length > 0) {
-            if (!c.origin || !filters.origins.includes(c.origin)) return false
-        }
-
-        // Finalidade
-        if (filters.finalidades.length > 0) {
-            if (!c.finalidade || !filters.finalidades.includes(c.finalidade)) return false
+            const allowedRaw = rawOriginsForGroup(filters.origins)
+            if (!c.origin || !allowedRaw.includes(c.origin)) return false
         }
 
         // Employee range
@@ -295,25 +251,19 @@ export function applyFilters(companies: Company[], filters: Filters): Company[] 
         if (filters.status === 'pending' && c.contacted) return false
         if (filters.status === 'contacted' && !c.contacted) return false
 
-        // Vendedor
+        // Vendedor (with "Sem proprietario" support)
         if (filters.vendedores.length > 0) {
-            if (!c.vendedor_responsavel || !filters.vendedores.includes(c.vendedor_responsavel)) return false
-        }
+            const hasNoOwner = filters.vendedores.includes(NO_OWNER)
+            const namedVendedores = filters.vendedores.filter((v) => v !== NO_OWNER)
 
-        // Seniority (company has at least one contact matching)
-        if (filters.seniorities.length > 0) {
-            const hasSeniority = c.contacts.some(
-                (ct) => ct.seniority && filters.seniorities.includes(ct.seniority)
-            )
-            if (!hasSeniority) return false
-        }
+            const isNoOwner = !c.vendedor_responsavel
+            const matchesNamed = namedVendedores.length > 0 && c.vendedor_responsavel && namedVendedores.includes(c.vendedor_responsavel)
 
-        // Department (company has at least one contact matching)
-        if (filters.departments.length > 0) {
-            const hasDept = c.contacts.some(
-                (ct) => ct.department && filters.departments.includes(ct.department)
-            )
-            if (!hasDept) return false
+            if (hasNoOwner && isNoOwner) return true
+            if (matchesNamed) return true
+            if (!hasNoOwner && !matchesNamed) return false
+            if (hasNoOwner && !isNoOwner && namedVendedores.length === 0) return false
+            if (!hasNoOwner) return false
         }
 
         return true
@@ -329,8 +279,8 @@ type FilterBarProps = {
 }
 
 export function FilterBar({ companies, filters, onChange }: FilterBarProps) {
-    const [expanded, setExpanded] = useState(false)
-    const options = extractOptions(companies)
+    const originOptions = extractOriginOptions(companies)
+    const vendedorOptions = extractVendedorOptions(companies)
     const active = hasActiveFilters(filters)
 
     const update = (partial: Partial<Filters>) => {
@@ -342,91 +292,39 @@ export function FilterBar({ companies, filters, onChange }: FilterBarProps) {
     }
 
     return (
-        <div className="bg-white border border-slate-200 rounded-lg">
-            <button
-                onClick={() => setExpanded(!expanded)}
-                className="w-full flex items-center justify-between px-4 py-2.5"
-            >
-                <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-slate-500" />
-                    <span className="text-sm font-medium text-slate-700">Filtros</span>
-                    {active && (
-                        <span className="bg-indigo-600 text-white rounded-full px-2 py-0.5 text-[10px] font-medium">
-                            Ativos
-                        </span>
-                    )}
-                </div>
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-            </button>
-
-            {expanded && (
-                <div className="px-4 pb-3 pt-1 border-t border-slate-100">
-                    <div className="flex flex-wrap gap-2">
-                        <MultiSelect
-                            label="Industria"
-                            options={options.industries}
-                            selected={filters.industries}
-                            onChange={(v) => update({ industries: v })}
-                        />
-                        <MultiSelect
-                            label="Senioridade"
-                            options={options.seniorities}
-                            selected={filters.seniorities}
-                            onChange={(v) => update({ seniorities: v })}
-                        />
-                        <MultiSelect
-                            label="Departamento"
-                            options={options.departments}
-                            selected={filters.departments}
-                            onChange={(v) => update({ departments: v })}
-                        />
-                        <MultiSelect
-                            label="Estado"
-                            options={options.states}
-                            selected={filters.states}
-                            onChange={(v) => update({ states: v })}
-                        />
-                        <SingleSelect
-                            label="Status"
-                            options={STATUS_OPTIONS}
-                            value={filters.status}
-                            onChange={(v) => update({ status: v })}
-                        />
-                        <MultiSelect
-                            label="Origem"
-                            options={options.origins}
-                            selected={filters.origins}
-                            onChange={(v) => update({ origins: v })}
-                        />
-                        <MultiSelect
-                            label="Funcionarios"
-                            options={EMPLOYEE_RANGE_OPTIONS}
-                            selected={filters.employeeRanges}
-                            onChange={(v) => update({ employeeRanges: v as EmployeeRange[] })}
-                        />
-                        <MultiSelect
-                            label="Finalidade"
-                            options={options.finalidades}
-                            selected={filters.finalidades}
-                            onChange={(v) => update({ finalidades: v })}
-                        />
-                        <MultiSelect
-                            label="Vendedor"
-                            options={options.vendedores}
-                            selected={filters.vendedores}
-                            onChange={(v) => update({ vendedores: v })}
-                        />
-                        {active && (
-                            <button
-                                onClick={clear}
-                                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-                            >
-                                <X className="w-3 h-3" />
-                                Limpar filtros
-                            </button>
-                        )}
-                    </div>
-                </div>
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+            <MultiSelect
+                label="Origem"
+                options={originOptions}
+                selected={filters.origins}
+                onChange={(v) => update({ origins: v })}
+            />
+            <MultiSelect
+                label="Qtd. Funcionarios"
+                options={EMPLOYEE_RANGE_OPTIONS}
+                selected={filters.employeeRanges}
+                onChange={(v) => update({ employeeRanges: v as EmployeeRange[] })}
+            />
+            <MultiSelect
+                label="Vendedor"
+                options={vendedorOptions}
+                selected={filters.vendedores}
+                onChange={(v) => update({ vendedores: v })}
+            />
+            <SingleSelect
+                label="Status"
+                options={STATUS_OPTIONS}
+                value={filters.status}
+                onChange={(v) => update({ status: v })}
+            />
+            {active && (
+                <button
+                    onClick={clear}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors whitespace-nowrap"
+                >
+                    <X className="w-4 h-4" />
+                    Limpar filtros
+                </button>
             )}
         </div>
     )
