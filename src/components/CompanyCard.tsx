@@ -19,6 +19,7 @@ import {
     Send,
 } from 'lucide-react'
 import { Company, Contact, getSeniorityBadge, cleanPhone } from '@/lib/types'
+import { buildGmailDraftUrl } from '@/lib/emailTemplate'
 
 type CompanyCardProps = {
     company: Company
@@ -341,6 +342,18 @@ export function CompanyCard({ company, selectedVendedor, onStatusChange, onSendH
 
                                             {/* Action Buttons */}
                                             <div className="flex gap-2 mt-1">
+                                                {contact.email && contact.email !== 'N/A' && (
+                                                    <a
+                                                        href={buildGmailDraftUrl(contact, company.name, selectedVendedor?.name || 'VANESSA')}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all border bg-red-50 text-red-600 border-red-100 hover:bg-red-100 hover:border-red-200"
+                                                        title="Abrir rascunho no Gmail"
+                                                    >
+                                                        <Mail className="w-3 h-3" />
+                                                        Rascunho Gmail
+                                                    </a>
+                                                )}
                                                 <button
                                                     onClick={() => handleSendHubSpot(contact)}
                                                     disabled={sendingId === contact.id}
