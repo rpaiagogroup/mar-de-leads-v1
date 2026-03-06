@@ -18,11 +18,12 @@ import {
     Briefcase,
     Send,
 } from 'lucide-react'
-import { Company, Contact, getSeniorityBadge, cleanPhone } from '@/lib/types'
+import { Company, Contact, HubSpotOwner, getSeniorityBadge, cleanPhone } from '@/lib/types'
 import { buildGmailDraftUrl } from '@/lib/emailTemplate'
 
 type CompanyCardProps = {
     company: Company
+    owners: HubSpotOwner[]
     selectedVendedor: { name: string; id: string; email: string } | null
     onStatusChange: (company: Company, contacted: boolean) => void
     onSendHubSpot: (company: Company, contact: Contact, ownerName: string, hubspotOwnerId: string, hubspotOwnerEmail: string) => void
@@ -50,9 +51,11 @@ function formatDate(iso: string | null): string {
     return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
-export function CompanyCard({ company, selectedVendedor, onStatusChange, onSendHubSpot, onCopy, defaultExpanded = false }: CompanyCardProps) {
+export function CompanyCard({ company, owners, selectedVendedor, onStatusChange, onSendHubSpot, onCopy, defaultExpanded = false }: CompanyCardProps) {
     const [expanded, setExpanded] = useState(defaultExpanded)
     const [sendingId, setSendingId] = useState<string | null>(null)
+    const [vendorPickContact, setVendorPickContact] = useState<Contact | null>(null)
+    const vendorPickRef = useRef<HTMLDivElement>(null)
     const contentRef = useRef<HTMLDivElement>(null)
     const [contentHeight, setContentHeight] = useState<number | undefined>(undefined)
 
@@ -62,14 +65,24 @@ export function CompanyCard({ company, selectedVendedor, onStatusChange, onSendH
         }
     }, [expanded, company.contacts.length])
 
-    const handleSendHubSpot = async (contact: Contact) => {
+    // Close vendor picker on outside click
+    useEffect(() => {
+        if (!vendorPickContact) return
+        const handler = (e: MouseEvent) => {
+            if (vendorPickRef.current && !vendorPickRef.current.contains(e.target as Node)) {
+                setVendorPickContact(null)
+            }
+        }
+        document.addEventListener('mousedown', handler)
+        return () => document.removeEventListener('mousedown', handler)
+    }, [vendorPickContact])
+
+    const handleSendHubSpot = async (contact: Contact, owner: HubSpotOwner) => {
         if (sendingId) return
-        const ownerName = selectedVendedor?.name || ''
-        const ownerId = selectedVendedor?.id || ''
-        const ownerEmail = selectedVendedor?.email || ''
+        setVendorPickContact(null)
         setSendingId(contact.id)
         try {
-            await onSendHubSpot(company, contact, ownerName, ownerId, ownerEmail)
+            await onSendHubSpot(company, contact, owner.label, owner.id, owner.email)
         } finally {
             setSendingId(null)
         }
@@ -354,22 +367,48 @@ export function CompanyCard({ company, selectedVendedor, onStatusChange, onSendH
                                                         Rascunho Gmail
                                                     </a>
                                                 )}
-                                                <button
-                                                    onClick={() => handleSendHubSpot(contact)}
-                                                    disabled={sendingId === contact.id}
-                                                    className={`flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all border ${
-                                                        sendingId === contact.id
-                                                            ? 'bg-slate-100 text-slate-400 border-slate-200'
-                                                            : 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100'
-                                                    }`}
-                                                >
-                                                    {sendingId === contact.id ? (
-                                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                                    ) : (
-                                                        <Database className="w-3 h-3" />
+                                                <div className="relative flex-1">
+                                                    <button
+                                                        onClick={() => setVendorPickContact(vendorPickContact?.id === contact.id ? null : contact)}
+                                                        disabled={sendingId === contact.id}
+                                                        className={`w-full flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-2 rounded-lg transition-all border ${
+                                                            sendingId === contact.id
+                                                                ? 'bg-slate-100 text-slate-400 border-slate-200'
+                                                                : vendorPickContact?.id === contact.id
+                                                                    ? 'bg-orange-100 text-orange-700 border-orange-300'
+                                                                    : 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100'
+                                                        }`}
+                                                    >
+                                                        {sendingId === contact.id ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <Database className="w-3 h-3" />
+                                                        )}
+                                                        {sendingId === contact.id ? 'Enviando...' : 'Enviar HubSpot'}
+                                                    </button>
+
+                                                    {/* Vendor picker dropdown */}
+                                                    {vendorPickContact?.id === contact.id && owners.length > 0 && (
+                                                        <div
+                                                            ref={vendorPickRef}
+                                                            className="absolute bottom-full mb-1 right-0 w-56 max-h-52 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50"
+                                                        >
+                                                            <div className="px-3 py-2 border-b border-slate-100">
+                                                                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Selecione o vendedor</span>
+                                                            </div>
+                                                            {owners.map((owner) => (
+                                                                <button
+                                                                    key={owner.id}
+                                                                    onClick={() => handleSendHubSpot(contact, owner)}
+                                                                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-orange-50 hover:text-orange-700 transition-colors flex flex-col"
+                                                                >
+                                                                    <span className="font-medium">{owner.label}</span>
+                                                                    <span className="text-[11px] text-slate-400">{owner.email}</span>
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     )}
-                                                    {sendingId === contact.id ? 'Enviando...' : 'Enviar HubSpot'}
-                                                </button>
+                                                </div>
                                             </div>
                                         </div>
                                     )

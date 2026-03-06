@@ -292,6 +292,7 @@ export function CompanyList() {
                             <CompanyCard
                                 key={company.key}
                                 company={company}
+                                owners={owners}
                                 selectedVendedor={selectedVendedor}
                                 onStatusChange={handleStatusChange}
                                 onSendHubSpot={handleSendHubSpot}
