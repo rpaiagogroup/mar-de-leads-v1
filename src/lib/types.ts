@@ -8,9 +8,8 @@ export type Contact = {
     phone: string | null
     linkedin: string | null
     seniority: string | null
+    department: string | null
 }
-
-export type Owner = 'VANESSA' | 'DEBORAH'
 
 export type Company = {
     key: string
@@ -21,18 +20,53 @@ export type Company = {
     industry: string | null
     numEmployees: number | null
     mockupLink: string | null
+    origin: string | null
+    finalidade: string | null
+    state: string | null
     contacted: boolean
     contacted_by: string | null
     contacted_at: string | null
-    owner?: Owner
+    sent_to_hubspot: boolean
+    sent_to_hubspot_at: string | null
+    follow_up_date: string | null
+    follow_up_notes: string | null
+    vendedor_responsavel: string | null
+    hubspot_status: string | null
+    hubspot_deal_stage: string | null
+    hubspot_last_synced_at: string | null
     contacts: Contact[]
 }
 
-export type StatusFilter = 'all' | 'pending' | 'contacted'
+export type HubSpotOwner = {
+    id: string
+    email: string
+    firstName: string
+    lastName: string
+    label: string
+}
+
+export type StatusFilter = 'all' | 'pending' | 'contacted' | 'follow_up'
+
+export type EmployeeRange = '1-50' | '51-200' | '201-500' | '500+'
+
+export type HubspotFilter = 'all' | 'yes' | 'no'
+
+export type Filters = {
+    search: string
+    industries: string[]
+    seniorities: string[]
+    departments: string[]
+    states: string[]
+    status: StatusFilter
+    hubspot: HubspotFilter
+    hubspotStatuses: string[]
+    origins: string[]
+    employeeRanges: EmployeeRange[]
+    finalidades: string[]
+    vendedores: string[]
+}
 
 // --- Shared Constants ---
-
-export const OWNERS: Owner[] = ['VANESSA', 'DEBORAH']
 
 export const SENIORITY_ORDER = [
     'c_suite',

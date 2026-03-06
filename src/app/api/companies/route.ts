@@ -1,105 +1,45 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
-import { TARGET_COMPANY_IDS, TARGET_COMPANIES } from '@/lib/targetCompanies'
 
-// Helper to normalize strings for comparison/keys
 const normalize = (str: string | null | undefined) => {
     if (!str) return ''
     return str.trim().toLowerCase()
 }
 
-// Helper to extract a domain from a URL (simple version)
 const extractDomain = (url: string | null | undefined) => {
     if (!url) return ''
     try {
         const cleanUrl = url.startsWith('http') ? url : `https://${url}`
         const hostname = new URL(cleanUrl).hostname
         return hostname.replace(/^www\./, '')
-    } catch (e) {
-        return normalize(url) // Fallback: just return normalized string if not a valid URL
+    } catch {
+        return normalize(url)
     }
 }
 
-/**
- * For source=all, we need to map each company back to its position in the
- * TARGET_COMPANIES list to determine the owner (first 20 = VANESSA, last 20 = DEBORAH).
- * We build a domain-based lookup from the target list for reliable matching.
- */
-function buildTargetOwnerMap(): Map<string, 'VANESSA' | 'DEBORAH'> {
-    const map = new Map<string, 'VANESSA' | 'DEBORAH'>()
-    const splitIndex = Math.ceil(TARGET_COMPANIES.length / 2) // 20
-
-    TARGET_COMPANIES.forEach((company, idx) => {
-        const domain = extractDomain(company.companyId)
-        const owner = idx < splitIndex ? 'VANESSA' : 'DEBORAH'
-        if (domain) map.set(domain, owner)
-        // Also store the raw companyId for exact match fallback
-        map.set(normalize(company.companyId), owner)
-    })
-
-    return map
-}
-
-export async function GET(request: Request) {
+export async function GET() {
     try {
         const session = await auth()
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // Determine filter mode from query parameter
-        const { searchParams } = new URL(request.url)
-        const source = searchParams.get('source') || 'china'
+        // 1. Fetch all people from v2 table
+        const people = await prisma.pessoas_apollo_b2b_2.findMany()
 
-        // 1. Fetch filtered people
-        let people
-
-        if (source === 'all') {
-            // Build a set of normalized target domains for matching
-            const targetDomains = new Set(
-                TARGET_COMPANY_IDS.map(id => extractDomain(id)).filter(Boolean)
-            )
-
-            // Fetch all people, then filter by domain match
-            // (target list has URLs with http:// but Apollo stores raw domains like www.x.com)
-            const allPeople = await prisma.pessoas_apollo_b2b.findMany({
-                where: {
-                    company_id: { not: null },
-                },
-            })
-
-            people = allPeople.filter(p => {
-                const domain = extractDomain(p.company_id)
-                return domain && targetDomains.has(domain)
-            })
-        } else {
-            // China: linkedin_scrapping + Brazilian phone
-            people = await prisma.pessoas_apollo_b2b.findMany({
-                where: {
-                    notes: 'linkedin_scrapping',
-                    phone: { startsWith: '+55' },
-                },
-            })
-        }
-
-        // 2. Group by Unique Company
+        // 2. Group by company_domain
         const companiesMap = new Map<string, {
-            key: string // Used for ID/Status
+            key: string
             name: string
             domainInput: string
             contacts: typeof people
         }>()
 
         for (const person of people) {
-            // Determine Company Key (Preference: company_id (often a URL) -> company_name)
-            let key = ''
-
-            if (person.company_id && person.company_id.includes('.')) {
-                key = extractDomain(person.company_id)
-            } else {
-                key = normalize(person.company_name)
-            }
+            const key = person.company_domain
+                ? extractDomain(person.company_domain)
+                : normalize(person.company_name)
 
             if (!key) continue
 
@@ -107,63 +47,41 @@ export async function GET(request: Request) {
                 companiesMap.set(key, {
                     key,
                     name: person.company_name || 'Empresa Desconhecida',
-                    domainInput: person.company_id || '',
-                    contacts: []
+                    domainInput: person.company_domain || '',
+                    contacts: [],
                 })
             }
 
-            const entry = companiesMap.get(key)!
-            entry.contacts.push(person)
+            companiesMap.get(key)!.contacts.push(person)
         }
 
-        // 3. Assemble List and Sort
+        // 3. Sort alphabetically
         const allCompanies = Array.from(companiesMap.values())
             .sort((a, b) => a.name.localeCompare(b.name))
 
-        // Prepare keys for DB lookups
-        const keys = allCompanies.map(c => c.key)
+        // 4. Fetch enrichment data from v2 table (all companies)
         const rawDomains = allCompanies.map(c => extractDomain(c.domainInput)).filter(Boolean)
-        // Include both "domain.com" and "www.domain.com" so the IN query matches DB values
         const potentialDomains = [...new Set(rawDomains.flatMap(d => [d, `www.${d}`]))]
         const potentialNames = allCompanies.map(c => normalize(c.name)).filter(Boolean)
 
-        // 4. Fetch Enrichment Data
-        const enrichedData = await prisma.empresas_enriquecidas.findMany({
+        const enrichedData = await prisma.empresas_enriquecidas_2.findMany({
             where: {
                 OR: [
                     { primary_domain: { in: potentialDomains, mode: 'insensitive' } },
-                    { company_name: { in: potentialNames, mode: 'insensitive' } }
-                ]
-            }
+                    { company_name: { in: potentialNames, mode: 'insensitive' } },
+                ],
+            },
         })
 
-        // 5. Fetch Status Data
-        const statusData = await prisma.company_outreach_status.findMany({
-            where: {
-                company_key: { in: keys }
-            }
+        // 5. Fetch company_actions for all domains
+        const allDomainKeys = allCompanies.map(c => c.key).filter(Boolean)
+        const actions = await prisma.company_actions.findMany({
+            where: { company_domain: { in: allDomainKeys } },
         })
+        const actionsMap = new Map(actions.map(a => [a.company_domain, a]))
 
-        // 6. Build owner assignment
-        // For source=all: use the target list order (first 20 VANESSA, last 20 DEBORAH)
-        // For source=china: use alphabetical 50/50 split
-        const targetOwnerMap = source === 'all' ? buildTargetOwnerMap() : null
-
-        // 7. Assemble Final Response
-        const result = allCompanies.map((comp, i) => {
-            // Determine owner
-            let owner: 'VANESSA' | 'DEBORAH'
-            if (targetOwnerMap) {
-                // Try matching by domain first, then raw company_id
-                const domainKey = extractDomain(comp.domainInput)
-                owner = targetOwnerMap.get(domainKey)
-                    || targetOwnerMap.get(normalize(comp.domainInput))
-                    || 'VANESSA' // Fallback
-            } else {
-                const splitIndex = Math.ceil(allCompanies.length / 2)
-                owner = i < splitIndex ? 'VANESSA' : 'DEBORAH'
-            }
-
+        // 6. Assemble response
+        const result = allCompanies.map((comp) => {
             const domainKey = extractDomain(comp.domainInput)
             const enrich = enrichedData.find(e => {
                 if (e.primary_domain && extractDomain(e.primary_domain) === domainKey) return true
@@ -171,32 +89,44 @@ export async function GET(request: Request) {
                 return false
             })
 
-            const status = statusData.find(s => s.company_key === comp.key)
+            const action = actionsMap.get(comp.key)
+            const contacted = action?.contacted ?? false
 
             return {
                 key: comp.key,
-                owner,
                 name: enrich?.company_name || comp.name,
-                description: enrich?.description || 'Sem descrição disponível.',
+                description: enrich?.description || 'Sem descricao disponivel.',
                 website: enrich?.website || enrich?.primary_domain || comp.domainInput || null,
                 location: [enrich?.city, enrich?.state, enrich?.country].filter(Boolean).join(', ') || null,
                 industry: enrich?.industry || null,
                 numEmployees: enrich?.num_employees || null,
                 mockupLink: enrich?.mockup_link || null,
+                origin: enrich?.origin || null,
+                finalidade: enrich?.finalidade || null,
+                state: enrich?.state || null,
 
-                contacted: status?.contacted || false,
-                contacted_by: status?.contacted_by || null,
-                contacted_at: status?.contacted_at || null,
+                contacted,
+                contacted_by: action?.contacted_by || null,
+                contacted_at: action?.contacted_at?.toISOString() || null,
+                sent_to_hubspot: action?.sent_to_hubspot ?? false,
+                sent_to_hubspot_at: action?.sent_to_hubspot_at?.toISOString() || null,
+                follow_up_date: action?.follow_up_date?.toISOString() || null,
+                follow_up_notes: action?.follow_up_notes || null,
+                vendedor_responsavel: action?.vendedor_responsavel || null,
+                hubspot_status: action?.hubspot_status || null,
+                hubspot_deal_stage: action?.hubspot_deal_stage || null,
+                hubspot_last_synced_at: action?.hubspot_last_synced_at?.toISOString() || null,
 
                 contacts: comp.contacts.map(p => ({
-                    id: p.contact_id,
+                    id: p.contact_id || p.id,
                     name: p.lead_name || 'Sem nome',
                     title: p.job_title || 'Sem cargo',
                     seniority: p.seniority_level,
+                    department: p.department,
                     email: p.email || 'N/A',
                     phone: p.phone,
-                    linkedin: p.linkedin_url
-                }))
+                    linkedin: p.linkedin_url,
+                })),
             }
         })
 
